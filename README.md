@@ -9,7 +9,8 @@
 - `src/res/gui/flash/DispersionReticleFlash.swf`：落弹环运行所需的 Flash 资源
 - `src/meta.xml`：最终 `.wotmod` 的包元数据
 - `.build/`：本地编译中间产物
-- `tools/`：反编译、编译、打包脚本
+- `tools/`：编译、打包脚本
+- `tools/buildlib/`：构建脚本的配置、文件工具、第三方同步、编译与打包模块
 - `release/`：最终生成的 `.wotmod`
 
 ## 当前状态
@@ -44,10 +45,9 @@
 ## 典型流程
 
 1. 根据需要修改 `src/res/scripts/client/gui/mods/*.py` 或 `src/meta.xml`。
-2. 如需检查 atlas 资源清单，运行 `tools/decompile_wotmod.py atlas`，会根据 `src/atlas/` 输出 `.build/atlas_manifest.txt`。
-3. 首次构建需要本机可用 `git` 以拉取公开源码。
-4. 优先双击根目录 `build_release.cmd`，它会强制使用 Python 2.7 编译，并输出 `release/battle_efficiency_standalone.wotmod`。
-5. 如果需要命令行执行，请直接运行 `D:\02.registered programs\Python27\python.exe tools\build_release.py`，不要使用裸 `python`，因为当前系统里的 `python` 可能不是可用的 Python 2.7。
+2. 首次构建需要本机可用 `git` 以拉取公开源码。
+3. 优先双击根目录 `build_release.cmd`，它会强制使用 Python 2.7 编译，并输出 `release/battle_efficiency_standalone.wotmod`。
+4. 如果需要命令行执行，请直接运行 `D:\02.registered programs\Python27\python.exe tools\build_release.py`，不要使用裸 `python`，因为当前系统里的 `python` 可能不是可用的 Python 2.7。
 
 ## 说明
 
