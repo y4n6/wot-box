@@ -1,6 +1,6 @@
 # wot-xvm 重建工程
 
-本目录用于从 `s0urce.box.combat.eff.wotmod` 重建可维护源码，并重新编译为可测试产物。
+本目录用于从 `s0urce.box.combat.eff.wotmod` 和 `s0urce.box.combat.eff.atlas.wotmod` 重建可维护源码与必要资源，并重新编译为单个可测试产物。
 
 ## 目录结构
 
@@ -12,16 +12,30 @@
 
 ## 当前状态
 
-- 原始插件：`original/s0urce.box.combat.eff.wotmod`
+- 原始逻辑插件：`original/s0urce.box.combat.eff.wotmod`
+- 原始资源插件：`original/s0urce.box.combat.eff.atlas.wotmod`
+- 独立输出插件：`release/battle_efficiency_standalone.wotmod`
+- 稳定包标识：`s0urce.box.combat.eff.atlas`
 - 目标 Python 版本：`2.7`
 - 打包格式：ZIP 容器，扩展名为 `.wotmod`
+
+## 两个原插件的关系
+
+`s0urce.box.combat.eff.wotmod` 负责 Python 逻辑：获取玩家数据、把效率/胜率拼进玩家名，并向战斗 UI 写入 `badge_XX` 图标名。两侧玩家面板和玩家头顶名称都复用游戏里的玩家名格式化结果，所以效率文本来自同一段 hook。
+
+`s0urce.box.combat.eff.atlas.wotmod` 负责资源：它提供 `res/gui/flash/atlases/battleAtlas.*` 中的 `badge_10..badge_17`、`badge_20..badge_23` 图标定义，以及 `vehicleMarkerAtlas.*` 车辆标记图集。主插件写入 `isAtlasSource=True` 和 `icon='badge_XX'` 后，游戏客户端需要这些 atlas 资源才能把图标真正画出来。
+
+新的 `battle_efficiency_standalone.wotmod` 会以原 atlas 插件为构建基底，完整保留它的目录项、条目顺序和资源元数据，再追加主插件编译后的 Python 逻辑。包根目录的 `meta.xml` 显式使用稳定 ID `s0urce.box.combat.eff.atlas`，因此可以使用清晰的新文件名，同时保持原 atlas 插件的资源加载顺序。
+
+测试时只加载 `release/battle_efficiency_standalone.wotmod` 这一个新文件，不要再同时加载原来的两个插件。构建脚本会自动删除 `release/` 中使用旧文件名生成的产物，防止资源冲突。
 
 ## 典型流程
 
 1. 运行 `tools/decompile_wotmod.py` 解包并重建源码。
-2. 根据需要修改 `src/res/scripts/client/gui/mods/*.py`。
-3. 优先双击根目录 `build_release.cmd`，它会强制使用 Python 2.7 编译并输出到 `release/`。
-4. 如果需要命令行执行，请直接运行 `D:\02.registered programs\Python27\python.exe tools\build_release.py`，不要使用裸 `python`，因为当前系统里的 `python` 可能不是可用的 Python 2.7。
+2. 如需检查资源插件，运行 `tools/decompile_wotmod.py atlas`，会输出 `build/atlas_manifest.txt` 并解包到 `build/extracted_atlas/`。
+3. 根据需要修改 `src/res/scripts/client/gui/mods/*.py`。
+4. 优先双击根目录 `build_release.cmd`，它会强制使用 Python 2.7 编译，并输出 `release/battle_efficiency_standalone.wotmod`。
+5. 如果需要命令行执行，请直接运行 `D:\02.registered programs\Python27\python.exe tools\build_release.py`，不要使用裸 `python`，因为当前系统里的 `python` 可能不是可用的 Python 2.7。
 
 ## 说明
 

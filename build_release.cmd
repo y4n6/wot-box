@@ -6,7 +6,7 @@ cd /d "%ROOT%"
 
 set "PY27=D:\02.registered programs\Python27\python.exe"
 set "SCRIPT=%ROOT%tools\build_release.py"
-set "OUTPUT=%ROOT%release\s0urce.box.combat.eff.wotmod"
+set "OUTPUT=%ROOT%release\battle_efficiency_standalone.wotmod"
 
 if not exist "%SCRIPT%" (
     echo [ERROR] Missing build script: "%SCRIPT%"

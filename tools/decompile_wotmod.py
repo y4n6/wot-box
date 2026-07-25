@@ -7,9 +7,13 @@ import sys
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WOTMOD_PATH = os.path.join(ROOT, 'original', 's0urce.box.combat.eff.wotmod')
+ORIGINAL_DIR = os.path.join(ROOT, 'original')
+MAIN_WOTMOD_PATH = os.path.join(ORIGINAL_DIR, 's0urce.box.combat.eff.wotmod')
+ATLAS_WOTMOD_PATH = os.path.join(ORIGINAL_DIR, 's0urce.box.combat.eff.atlas.wotmod')
 BUILD_DIR = os.path.join(ROOT, 'build')
 EXTRACT_DIR = os.path.join(BUILD_DIR, 'extracted')
+ATLAS_EXTRACT_DIR = os.path.join(BUILD_DIR, 'extracted_atlas')
+ATLAS_MANIFEST_PATH = os.path.join(BUILD_DIR, 'atlas_manifest.txt')
 SRC_DIR = os.path.join(ROOT, 'src')
 PY314 = r'D:\02.registered programs\Python314\python.exe'
 UNCOMPYLE6 = r'D:\02.registered programs\Python314\Scripts\uncompyle6.exe'
@@ -27,10 +31,27 @@ def ensure_parent(path):
         os.makedirs(parent)
 
 
-def extract_wotmod():
+def extract_wotmod(wotmod_path, extract_dir):
+    reset_dir(extract_dir)
+    with zipfile.ZipFile(wotmod_path, 'r') as zf:
+        zf.extractall(extract_dir)
+
+
+def extract_main_wotmod():
     reset_dir(EXTRACT_DIR)
-    with zipfile.ZipFile(WOTMOD_PATH, 'r') as zf:
+    with zipfile.ZipFile(MAIN_WOTMOD_PATH, 'r') as zf:
         zf.extractall(EXTRACT_DIR)
+
+
+def extract_atlas_wotmod():
+    extract_wotmod(ATLAS_WOTMOD_PATH, ATLAS_EXTRACT_DIR)
+    with zipfile.ZipFile(ATLAS_WOTMOD_PATH, 'r') as zf:
+        ensure_parent(ATLAS_MANIFEST_PATH)
+        with io.open(ATLAS_MANIFEST_PATH, 'w', encoding='utf-8') as manifest:
+            for info in zf.infolist():
+                manifest.write(u'%s\t%s\n' % (info.filename, info.file_size))
+    print('Atlas manifest: %s' % os.path.relpath(ATLAS_MANIFEST_PATH, ROOT))
+    print('Atlas extracted to: %s' % os.path.relpath(ATLAS_EXTRACT_DIR, ROOT))
 
 
 def collect_pyc_files():
@@ -57,14 +78,24 @@ def decompile_file(pyc_path):
 
 
 def main():
-    if not os.path.exists(WOTMOD_PATH):
-        raise SystemExit('Missing input: %s' % WOTMOD_PATH)
+    target = sys.argv[1] if len(sys.argv) > 1 else 'main'
+    if target == 'atlas':
+        if not os.path.exists(ATLAS_WOTMOD_PATH):
+            raise SystemExit('Missing atlas input: %s' % ATLAS_WOTMOD_PATH)
+        extract_atlas_wotmod()
+        return
+
+    if target != 'main':
+        raise SystemExit('Usage: decompile_wotmod.py [main|atlas]')
+
+    if not os.path.exists(MAIN_WOTMOD_PATH):
+        raise SystemExit('Missing input: %s' % MAIN_WOTMOD_PATH)
     if not os.path.exists(PY314):
         raise SystemExit('Missing Python 3 runtime: %s' % PY314)
     if not os.path.exists(UNCOMPYLE6):
         raise SystemExit('Missing uncompyle6 executable: %s' % UNCOMPYLE6)
 
-    extract_wotmod()
+    extract_main_wotmod()
     pyc_files = collect_pyc_files()
     if not pyc_files:
         raise SystemExit('No .pyc files found in %s' % EXTRACT_DIR)
