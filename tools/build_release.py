@@ -10,14 +10,24 @@ SRC_DIR = os.path.join(ROOT, 'src')
 BUILD_DIR = os.path.join(ROOT, '.build')
 COMPILED_DIR = os.path.join(BUILD_DIR, 'compiled')
 RELEASE_DIR = os.path.join(ROOT, 'release')
-ORIGINAL_DIR = os.path.join(ROOT, 'original')
-ATLAS_WOTMOD_PATH = os.path.join(ORIGINAL_DIR, 's0urce.box.combat.eff.atlas.wotmod')
+ATLAS_SRC_DIR = os.path.join(SRC_DIR, 'atlas')
 META_XML_PATH = os.path.join(SRC_DIR, 'meta.xml')
 META_XML_ARCNAME = 'meta.xml'
 PACKAGE_ID = 'battle.efficiency.standalone'
 PACKAGE_VERSION = '2.0.0'
 RELEASE_NAME = 'battle_efficiency_standalone.wotmod'
 STALE_RELEASE_NAMES = ('s0urce.box.combat.eff.atlas.wotmod', 's0urce.box.combat.eff.wotmod')
+
+ATLAS_ENTRIES = (
+    ('res/', None, (2020, 11, 27, 12, 51, 18), 16),
+    ('res/gui/', None, (2020, 11, 27, 12, 51, 18), 16),
+    ('res/gui/flash/', None, (2020, 11, 27, 12, 51, 18), 16),
+    ('res/gui/flash/atlases/', None, (2020, 11, 27, 12, 51, 18), 16),
+    ('res/gui/flash/atlases/battleAtlas.dds', 'res/gui/flash/atlases/battleAtlas.dds', (2026, 1, 14, 10, 50, 56), 32),
+    ('res/gui/flash/atlases/battleAtlas.xml', 'res/gui/flash/atlases/battleAtlas.xml', (2026, 1, 14, 10, 50, 56), 32),
+    ('res/gui/flash/atlases/vehicleMarkerAtlas.dds', 'res/gui/flash/atlases/vehicleMarkerAtlas.dds', (2011, 1, 1, 0, 0, 0), 32),
+    ('res/gui/flash/atlases/vehicleMarkerAtlas.xml', 'res/gui/flash/atlases/vehicleMarkerAtlas.xml', (2011, 1, 1, 0, 0, 0), 32),
+)
 
 REQUIRED_BADGE_NAMES = tuple(['badge_%s' % index for index in range(10, 18)] + ['badge_%s' % index for index in range(20, 24)])
 ATLAS_RESOURCE_GROUPS = (
@@ -85,24 +95,45 @@ def get_required_atlas_resources():
     return tuple(resources)
 
 
+def get_atlas_source_path(arcname):
+    return os.path.join(ATLAS_SRC_DIR, arcname.replace('/', os.sep))
+
+
 def validate_atlas_resources():
-    if not os.path.exists(ATLAS_WOTMOD_PATH):
-        raise SystemExit('Missing atlas input: %s' % ATLAS_WOTMOD_PATH)
+    missing_resources = [resource for resource in get_required_atlas_resources() if not os.path.exists(get_atlas_source_path(resource))]
+    if missing_resources:
+        raise SystemExit('Atlas source is missing required resources: %s' % ', '.join(missing_resources))
 
-    with zipfile.ZipFile(ATLAS_WOTMOD_PATH, 'r') as zf:
-        atlas_names = set([normalize_arcname(name) for name in zf.namelist()])
-        missing_resources = [resource for resource in get_required_atlas_resources() if resource not in atlas_names]
-        if missing_resources:
-            raise SystemExit('Atlas input is missing required resources: %s' % ', '.join(missing_resources))
+    with open(get_atlas_source_path('res/gui/flash/atlases/battleAtlas.xml'), 'rb') as battle_xml_file:
+        battle_xml = battle_xml_file.read()
+    missing_badges = []
+    for badge_name in REQUIRED_BADGE_NAMES:
+        marker = '<name> %s </name>' % badge_name
+        if marker not in battle_xml:
+            missing_badges.append(badge_name)
+    if missing_badges:
+        raise SystemExit('battleAtlas.xml is missing required badge entries: %s' % ', '.join(missing_badges))
 
-        battle_xml = zf.read('res/gui/flash/atlases/battleAtlas.xml')
-        missing_badges = []
-        for badge_name in REQUIRED_BADGE_NAMES:
-            marker = '<name> %s </name>' % badge_name
-            if marker not in battle_xml:
-                missing_badges.append(badge_name)
-        if missing_badges:
-            raise SystemExit('battleAtlas.xml is missing required badge entries: %s' % ', '.join(missing_badges))
+
+def write_stored_entry(zf, written_arcnames, arcname, data, date_time, external_attr):
+    if arcname in written_arcnames:
+        raise SystemExit('Duplicate package entry: %s' % arcname)
+    info = zipfile.ZipInfo(arcname, date_time)
+    info.compress_type = zipfile.ZIP_STORED
+    info.create_system = 0
+    info.external_attr = external_attr
+    zf.writestr(info, data)
+    written_arcnames.add(arcname)
+
+
+def write_atlas_entries(zf, written_arcnames):
+    for arcname, source_arcname, date_time, external_attr in ATLAS_ENTRIES:
+        if source_arcname is None:
+            write_stored_entry(zf, written_arcnames, arcname, '', date_time, external_attr)
+            continue
+        source_path = get_atlas_source_path(source_arcname)
+        with open(source_path, 'rb') as source_file:
+            write_stored_entry(zf, written_arcnames, arcname, source_file.read(), date_time, external_attr)
 
 
 def write_zip_entry(zf, written_arcnames, source_path, arcname):
@@ -129,38 +160,35 @@ def validate_meta_xml(xml_data):
 
 
 def validate_release(output_path, compiled_count):
-    with zipfile.ZipFile(ATLAS_WOTMOD_PATH, 'r') as atlas_zip:
-        atlas_infos = atlas_zip.infolist()
-        atlas_names = [normalize_arcname(info.filename) for info in atlas_infos]
-        atlas_files = [info for info in atlas_infos if not info.filename.endswith('/')]
+    atlas_names = [entry[0] for entry in ATLAS_ENTRIES]
+    atlas_files = [entry for entry in ATLAS_ENTRIES if entry[1] is not None]
 
-        with zipfile.ZipFile(output_path, 'r') as release_zip:
-            release_infos = release_zip.infolist()
-            release_names = [normalize_arcname(info.filename) for info in release_infos]
-            if release_names[:len(atlas_names)] != atlas_names:
-                raise SystemExit('Release does not preserve the atlas package entry order.')
+    with zipfile.ZipFile(output_path, 'r') as release_zip:
+        release_infos = release_zip.infolist()
+        release_names = [normalize_arcname(info.filename) for info in release_infos]
+        if release_names[:len(atlas_names)] != atlas_names:
+            raise SystemExit('Release does not preserve the atlas package entry order.')
 
-            metadata_attributes = ('date_time', 'compress_type', 'comment', 'extra', 'create_system', 'external_attr')
-            for index, atlas_info in enumerate(atlas_infos):
-                release_info = release_infos[index]
-                for attribute in metadata_attributes:
-                    if getattr(release_info, attribute) != getattr(atlas_info, attribute):
-                        raise SystemExit('Release atlas entry metadata differs from original: %s (%s)' % (atlas_info.filename, attribute))
+        for index, (arcname, _source_arcname, date_time, external_attr) in enumerate(ATLAS_ENTRIES):
+            release_info = release_infos[index]
+            if normalize_arcname(release_info.filename) != arcname:
+                raise SystemExit('Release atlas entry order differs from expected: %s' % arcname)
+            if release_info.date_time != date_time or release_info.compress_type != zipfile.ZIP_STORED or release_info.create_system != 0 or release_info.external_attr != external_attr:
+                raise SystemExit('Release atlas entry metadata differs from expected: %s' % arcname)
 
-            for atlas_info in atlas_files:
-                arcname = normalize_arcname(atlas_info.filename)
-                release_info = release_zip.getinfo(arcname)
-                if release_info.CRC != atlas_info.CRC or release_info.file_size != atlas_info.file_size:
-                    raise SystemExit('Release atlas resource differs from original: %s' % arcname)
-                if release_zip.read(arcname) != atlas_zip.read(atlas_info.filename):
-                    raise SystemExit('Release atlas resource bytes differ from original: %s' % arcname)
+        for arcname, source_arcname, _date_time, _external_attr in atlas_files:
+            with open(get_atlas_source_path(source_arcname), 'rb') as source_file:
+                source_data = source_file.read()
+            release_info = release_zip.getinfo(arcname)
+            if release_info.file_size != len(source_data) or release_zip.read(arcname) != source_data:
+                raise SystemExit('Release atlas resource differs from source: %s' % arcname)
 
-            script_names = [name for name in release_names if name.endswith('.pyc')]
-            if len(script_names) != compiled_count:
-                raise SystemExit('Release script count mismatch: expected %s, got %s' % (compiled_count, len(script_names)))
-            if release_names.count(META_XML_ARCNAME) != 1:
-                raise SystemExit('Release must contain exactly one root meta.xml.')
-            validate_meta_xml(release_zip.read(META_XML_ARCNAME))
+        script_names = [name for name in release_names if name.endswith('.pyc')]
+        if len(script_names) != compiled_count:
+            raise SystemExit('Release script count mismatch: expected %s, got %s' % (compiled_count, len(script_names)))
+        if release_names.count(META_XML_ARCNAME) != 1:
+            raise SystemExit('Release must contain exactly one root meta.xml.')
+        validate_meta_xml(release_zip.read(META_XML_ARCNAME))
 
     return len(atlas_names), len(atlas_files)
 
@@ -181,9 +209,9 @@ def package_wotmod():
     with open(META_XML_PATH, 'rb') as meta_file:
         meta_xml = meta_file.read()
     validate_meta_xml(meta_xml)
-    shutil.copyfile(ATLAS_WOTMOD_PATH, output_path)
-    with zipfile.ZipFile(output_path, 'a', zipfile.ZIP_STORED) as zf:
-        written_arcnames = set([normalize_arcname(name) for name in zf.namelist()])
+    with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_STORED) as zf:
+        written_arcnames = set()
+        write_atlas_entries(zf, written_arcnames)
         for path, arcname in iter_compiled_files():
             write_zip_entry(zf, written_arcnames, path, arcname)
         if META_XML_ARCNAME in written_arcnames:
