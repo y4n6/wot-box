@@ -14,7 +14,7 @@
 
 - 资源输入插件：`original/s0urce.box.combat.eff.atlas.wotmod`
 - 独立输出插件：`release/battle_efficiency_standalone.wotmod`
-- 稳定包标识：`s0urce.box.combat.eff.atlas`
+- 当前包标识：`battle.efficiency.standalone`
 - 目标 Python 版本：`2.7`
 - 打包格式：ZIP 容器，扩展名为 `.wotmod`
 
@@ -24,7 +24,7 @@
 
 `s0urce.box.combat.eff.atlas.wotmod` 负责资源：它提供 `res/gui/flash/atlases/battleAtlas.*` 中的 `badge_10..badge_17`、`badge_20..badge_23` 图标定义，以及 `vehicleMarkerAtlas.*` 车辆标记图集。主插件写入 `isAtlasSource=True` 和 `icon='badge_XX'` 后，游戏客户端需要这些 atlas 资源才能把图标真正画出来。
 
-新的 `battle_efficiency_standalone.wotmod` 会以原 atlas 插件为构建基底，完整保留它的目录项、条目顺序和资源元数据，再追加主插件编译后的 Python 逻辑。包根目录的 `meta.xml` 显式使用稳定 ID `s0urce.box.combat.eff.atlas`，因此可以使用清晰的新文件名，同时保持原 atlas 插件的资源加载顺序。
+新的 `battle_efficiency_standalone.wotmod` 会以原 atlas 插件为构建基底，完整保留它的目录项、条目顺序和资源元数据，再追加主插件编译后的 Python 逻辑。包根目录的 `meta.xml` 显式使用独立 ID `battle.efficiency.standalone`，最终文件名和包标识都不再沿用原插件命名。
 
 测试时只加载 `release/battle_efficiency_standalone.wotmod` 这一个新文件，不要再同时加载原来的两个插件。构建脚本会自动删除 `release/` 中使用旧文件名生成的产物，防止资源冲突。
 
