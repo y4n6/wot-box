@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ElementTree
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(ROOT, 'src')
-BUILD_DIR = os.path.join(ROOT, 'build')
+BUILD_DIR = os.path.join(ROOT, '.build')
 COMPILED_DIR = os.path.join(BUILD_DIR, 'compiled')
 RELEASE_DIR = os.path.join(ROOT, 'release')
 ORIGINAL_DIR = os.path.join(ROOT, 'original')
