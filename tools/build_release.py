@@ -16,7 +16,6 @@ META_XML_ARCNAME = 'meta.xml'
 PACKAGE_ID = 'battle.efficiency.standalone'
 PACKAGE_VERSION = '2.0.0'
 RELEASE_NAME = 'battle_efficiency_standalone.wotmod'
-STALE_RELEASE_NAMES = ('s0urce.box.combat.eff.atlas.wotmod', 's0urce.box.combat.eff.wotmod')
 
 ATLAS_ENTRIES = (
     ('res/', None, (2020, 11, 27, 12, 51, 18), 16),
@@ -199,10 +198,6 @@ def package_wotmod():
     output_path = os.path.join(RELEASE_DIR, RELEASE_NAME)
     if os.path.exists(output_path):
         os.remove(output_path)
-    for stale_release_name in STALE_RELEASE_NAMES:
-        stale_output_path = os.path.join(RELEASE_DIR, stale_release_name)
-        if os.path.exists(stale_output_path):
-            os.remove(stale_output_path)
     validate_atlas_resources()
     if not os.path.exists(META_XML_PATH):
         raise SystemExit('Missing package metadata: %s' % META_XML_PATH)
