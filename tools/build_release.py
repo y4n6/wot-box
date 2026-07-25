@@ -2,6 +2,7 @@
 import os
 import py_compile
 import shutil
+import subprocess
 import zipfile
 import xml.etree.ElementTree as ElementTree
 
@@ -9,13 +10,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(ROOT, 'src')
 BUILD_DIR = os.path.join(ROOT, '.build')
 COMPILED_DIR = os.path.join(BUILD_DIR, 'compiled')
+INTEGRATED_DIR = os.path.join(BUILD_DIR, 'integrated_src')
 RELEASE_DIR = os.path.join(ROOT, 'release')
 ATLAS_SRC_DIR = os.path.join(SRC_DIR, 'atlas')
 META_XML_PATH = os.path.join(SRC_DIR, 'meta.xml')
 META_XML_ARCNAME = 'meta.xml'
 PACKAGE_ID = 'battle.efficiency.standalone'
-PACKAGE_VERSION = '2.0.0'
+PACKAGE_VERSION = '2.1.0'
 RELEASE_NAME = 'battle_efficiency_standalone.wotmod'
+DISPERSION_RETICLE_REF = 'v3.1.3'
+DISPERSION_RETICLE_REPO_URL = 'https://github.com/Pruszko/DispersionReticle.git'
+DISPERSION_RETICLE_VENDOR_DIR = os.path.join(BUILD_DIR, 'vendor', 'DispersionReticle')
+DISPERSION_RETICLE_SOURCE_DIR = os.path.join(DISPERSION_RETICLE_VENDOR_DIR, 'src')
+DISPERSION_RETICLE_SWF_SOURCE_PATH = os.path.join(SRC_DIR, 'res', 'gui', 'flash', 'DispersionReticleFlash.swf')
+DISPERSION_RETICLE_SWF_TARGET_PATH = os.path.join(INTEGRATED_DIR, 'res', 'gui', 'flash', 'DispersionReticleFlash.swf')
 
 ATLAS_ENTRIES = (
     ('res/', None, (2020, 11, 27, 12, 51, 18), 16),
@@ -50,15 +58,84 @@ def ensure_parent(path):
         os.makedirs(parent)
 
 
+def copy_tree(source_dir, target_dir):
+    for base, dirs, files in os.walk(source_dir):
+        relative = os.path.relpath(base, source_dir)
+        current_target = target_dir if relative == '.' else os.path.join(target_dir, relative)
+        if not os.path.exists(current_target):
+            os.makedirs(current_target)
+        for dir_name in dirs:
+            child_dir = os.path.join(current_target, dir_name)
+            if not os.path.exists(child_dir):
+                os.makedirs(child_dir)
+        for file_name in files:
+            source_path = os.path.join(base, file_name)
+            target_path = os.path.join(current_target, file_name)
+            ensure_parent(target_path)
+            shutil.copy2(source_path, target_path)
+
+
+def run_command(command):
+    try:
+        subprocess.check_call(command)
+    except OSError:
+        raise SystemExit('Required command is not available: %s' % command[0])
+    except subprocess.CalledProcessError as error:
+        raise SystemExit('Command failed with exit code %s: %s' % (error.returncode, ' '.join(command)))
+
+
+def ensure_dispersion_reticle_vendor_repo():
+    if os.path.isdir(DISPERSION_RETICLE_SOURCE_DIR):
+        return
+    ensure_parent(DISPERSION_RETICLE_VENDOR_DIR)
+    if os.path.exists(DISPERSION_RETICLE_VENDOR_DIR):
+        shutil.rmtree(DISPERSION_RETICLE_VENDOR_DIR)
+    run_command([
+        'git', 'clone', '--depth', '1', '--branch', DISPERSION_RETICLE_REF,
+        DISPERSION_RETICLE_REPO_URL, DISPERSION_RETICLE_VENDOR_DIR
+    ])
+
+
+def write_binary_file(path, data):
+    ensure_parent(path)
+    with open(path, 'wb') as target_file:
+        target_file.write(data)
+
+
+def sync_public_dispersion_reticle_sources():
+    reset_dir(INTEGRATED_DIR)
+    copy_tree(SRC_DIR, INTEGRATED_DIR)
+
+    ensure_dispersion_reticle_vendor_repo()
+
+    entry_source = os.path.join(DISPERSION_RETICLE_SOURCE_DIR, 'mod_DispersionReticle.py')
+    entry_target = os.path.join(INTEGRATED_DIR, 'res', 'scripts', 'client', 'gui', 'mods', 'mod_DispersionReticle.py')
+    ensure_parent(entry_target)
+    shutil.copy2(entry_source, entry_target)
+
+    package_source = os.path.join(DISPERSION_RETICLE_SOURCE_DIR, 'dispersionreticle')
+    package_target = os.path.join(INTEGRATED_DIR, 'res', 'scripts', 'client', 'dispersionreticle')
+    copy_tree(package_source, package_target)
+
+    gui_source = os.path.join(DISPERSION_RETICLE_SOURCE_DIR, 'gui', 'dispersionreticle')
+    gui_target = os.path.join(INTEGRATED_DIR, 'res', 'gui', 'dispersionreticle')
+    copy_tree(gui_source, gui_target)
+
+    if not os.path.exists(DISPERSION_RETICLE_SWF_SOURCE_PATH):
+        raise SystemExit('Missing DispersionReticle SWF source: %s' % DISPERSION_RETICLE_SWF_SOURCE_PATH)
+    ensure_parent(DISPERSION_RETICLE_SWF_TARGET_PATH)
+    shutil.copy2(DISPERSION_RETICLE_SWF_SOURCE_PATH, DISPERSION_RETICLE_SWF_TARGET_PATH)
+
+
 def compile_sources():
     reset_dir(COMPILED_DIR)
     compiled_count = 0
-    for base, _dirs, files in os.walk(SRC_DIR):
+    for base, _dirs, files in os.walk(INTEGRATED_DIR):
         for name in files:
             if not name.endswith('.py'):
                 continue
             source_path = os.path.join(base, name)
-            relative = os.path.relpath(source_path, SRC_DIR)
+            relative = os.path.relpath(source_path, INTEGRATED_DIR)
             target_path = os.path.join(COMPILED_DIR, os.path.splitext(relative)[0] + '.pyc')
             ensure_parent(target_path)
             py_compile.compile(source_path, cfile=target_path, doraise=True)
@@ -75,6 +152,21 @@ def iter_compiled_files():
         for name in files:
             path = os.path.join(base, name)
             arcname = normalize_arcname(os.path.relpath(path, COMPILED_DIR))
+            yield path, arcname
+
+
+def iter_static_package_files():
+    ignored_paths = set(entry[0] for entry in ATLAS_ENTRIES if entry[1] is not None)
+    for base, _dirs, files in os.walk(INTEGRATED_DIR):
+        for name in files:
+            if name.endswith('.py'):
+                continue
+            path = os.path.join(base, name)
+            arcname = normalize_arcname(os.path.relpath(path, INTEGRATED_DIR))
+            if not arcname.startswith('res/'):
+                continue
+            if arcname in ignored_paths:
+                continue
             yield path, arcname
 
 
@@ -200,6 +292,8 @@ def package_wotmod():
         write_atlas_entries(zf, written_arcnames)
         for path, arcname in iter_compiled_files():
             write_zip_entry(zf, written_arcnames, path, arcname)
+        for path, arcname in iter_static_package_files():
+            write_zip_entry(zf, written_arcnames, path, arcname)
         if META_XML_ARCNAME in written_arcnames:
             raise SystemExit('Duplicate package entry: %s' % META_XML_ARCNAME)
         zf.writestr(META_XML_ARCNAME, meta_xml)
@@ -209,12 +303,14 @@ def package_wotmod():
 def main():
     if not os.path.exists(SRC_DIR):
         raise SystemExit('Missing source directory: %s' % SRC_DIR)
+    sync_public_dispersion_reticle_sources()
     compiled_count = compile_sources()
     output_path = package_wotmod()
     atlas_entry_count, atlas_file_count = validate_release(output_path, compiled_count)
     print('Compiled modules:', compiled_count)
     print('Preserved atlas entries:', atlas_entry_count)
     print('Preserved atlas files:', atlas_file_count)
+    print('Integrated public reticle ref:', DISPERSION_RETICLE_REF)
     print('Package id:', PACKAGE_ID)
     print('Package version:', PACKAGE_VERSION)
     print('Release output:', output_path)

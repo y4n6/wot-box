@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
     <id>battle.efficiency.standalone</id>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <name>Battle Efficiency Standalone</name>
-    <description>Displays player efficiency text, badges, vehicle markers, and minimap vehicle icons.</description>
+    <description>Displays player efficiency text, badges, minimap icons, and the focused dispersion reticle.</description>
 </root>
