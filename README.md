@@ -1,11 +1,11 @@
 # wot-box 独立战绩插件
 
-本项目用于维护一个 World of Tanks 客户端战斗效率显示插件。当前代码会编译为单个 `.wotmod`，用于在战斗 UI 中显示玩家效率、胜率徽章、车辆标记和小地图相关图标。
+本项目用于维护一个 World of Tanks 客户端战斗效率显示插件。当前代码会编译为单个 `.wotmod`，用于在战斗 UI 中显示玩家效率和胜率徽章。
 
 ## 目录结构
 
 - `src/res/scripts/client/gui/mods/`：Python 2.7 插件源码
-- `src/atlas/res/gui/flash/atlases/`：战斗 UI 需要的 atlas 图集资源
+- `src/atlas/res/gui/flash/atlases/`：胜率徽章需要的 atlas 图集资源
 - `src/meta.xml`：最终 `.wotmod` 的包元数据
 - `.build/`：本地编译中间产物
 - `tools/`：反编译、编译、打包脚本
@@ -23,14 +23,14 @@
 - Python 逻辑会在战斗加载时获取玩家数据，并把效率、胜率等文本拼接进玩家显示名称。
 - 两侧玩家面板和玩家头顶名称复用游戏里的玩家名格式化结果，因此显示文本来自同一套 hook 逻辑。
 - 战斗 UI 徽章通过 `badge_XX` 这类 atlas 条目名渲染，实际图标资源来自 `src/atlas/res/gui/flash/atlases/battleAtlas.*`。
-- 车辆标记和小地图相关图标资源来自 `src/atlas/res/gui/flash/atlases/vehicleMarkerAtlas.*`。
+- 车辆标记和小地图相关图标不再由本插件覆盖，保持游戏默认显示效果。
 
 ## 打包方式
 
 构建脚本会完成以下工作：
 
 1. 使用 Python 2.7 编译 `src/res/scripts/client/gui/mods/*.py`。
-2. 将 `src/atlas/` 中的 atlas 资源写入最终 `.wotmod`。
+2. 将 `src/atlas/` 中的徽章 atlas 资源写入最终 `.wotmod`。
 3. 写入 `src/meta.xml` 作为包元数据。
 4. 校验 atlas 资源、徽章条目、脚本数量和包元数据。
 

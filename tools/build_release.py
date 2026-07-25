@@ -24,8 +24,6 @@ ATLAS_ENTRIES = (
     ('res/gui/flash/atlases/', None, (2020, 11, 27, 12, 51, 18), 16),
     ('res/gui/flash/atlases/battleAtlas.dds', 'res/gui/flash/atlases/battleAtlas.dds', (2026, 1, 14, 10, 50, 56), 32),
     ('res/gui/flash/atlases/battleAtlas.xml', 'res/gui/flash/atlases/battleAtlas.xml', (2026, 1, 14, 10, 50, 56), 32),
-    ('res/gui/flash/atlases/vehicleMarkerAtlas.dds', 'res/gui/flash/atlases/vehicleMarkerAtlas.dds', (2011, 1, 1, 0, 0, 0), 32),
-    ('res/gui/flash/atlases/vehicleMarkerAtlas.xml', 'res/gui/flash/atlases/vehicleMarkerAtlas.xml', (2011, 1, 1, 0, 0, 0), 32),
 )
 
 REQUIRED_BADGE_NAMES = tuple(['badge_%s' % index for index in range(10, 18)] + ['badge_%s' % index for index in range(20, 24)])
@@ -35,13 +33,6 @@ ATLAS_RESOURCE_GROUPS = (
         (
             'res/gui/flash/atlases/battleAtlas.xml',
             'res/gui/flash/atlases/battleAtlas.dds',
-        ),
-    ),
-    (
-        'vehicle markers',
-        (
-            'res/gui/flash/atlases/vehicleMarkerAtlas.xml',
-            'res/gui/flash/atlases/vehicleMarkerAtlas.dds',
         ),
     ),
 )
